@@ -1,4 +1,4 @@
-package com.deezywallet.payment_service;
+package com.deezywallet.payment;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
