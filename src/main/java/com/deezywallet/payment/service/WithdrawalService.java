@@ -1,27 +1,29 @@
 package com.deezywallet.payment.service;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.deezywallet.payment.constants.PaymentErrorCode;
 import com.deezywallet.payment.dto.request.WithdrawalRequest;
 import com.deezywallet.payment.dto.response.PagedResponse;
 import com.deezywallet.payment.dto.response.WithdrawalResponse;
 import com.deezywallet.payment.entity.PaymentMethod;
-import com.deezywallet.payment.entity.WithdrawalRequest as WithdrawalEntity;
 import com.deezywallet.payment.enums.PaymentMethodTypeEnum;
 import com.deezywallet.payment.enums.WithdrawalStatusEnum;
 import com.deezywallet.payment.event.PaymentEventPublisher;
-import com.deezywallet.payment.exception.*;
+import com.deezywallet.payment.exception.GatewayException;
+import com.deezywallet.payment.exception.PaymentValidationException;
 import com.deezywallet.payment.mapper.PaymentMapper;
 import com.deezywallet.payment.repository.PaymentMethodRepository;
 import com.deezywallet.payment.repository.WithdrawalRequestRepository;
 import com.deezywallet.payment.security.UserPrincipal;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * WithdrawalService — wallet → bank account via NPCI.
@@ -78,7 +80,7 @@ public class WithdrawalService {
 		}
 
 		// Persist withdrawal request
-		WithdrawalEntity withdrawal = WithdrawalEntity.builder()
+		com.deezywallet.payment.entity.WithdrawalRequest withdrawal = com.deezywallet.payment.entity.WithdrawalRequest.builder()
 				.id(UUID.randomUUID().toString())
 				.userId(principal.getUserId())
 				.walletId(resolveWalletId(principal.getUserId()))
@@ -98,7 +100,7 @@ public class WithdrawalService {
 		return mapper.toWithdrawalResponse(withdrawal);
 	}
 
-	private void initiateNpciTransfer(WithdrawalEntity withdrawal, PaymentMethod method) {
+	private void initiateNpciTransfer(com.deezywallet.payment.entity.WithdrawalRequest withdrawal, PaymentMethod method) {
 		try {
 			// Decrypt bank account number before passing to NPCI
 			String decryptedAccountNumber = decrypt(method.getBankAccountEncrypted());
@@ -134,7 +136,7 @@ public class WithdrawalService {
 	 */
 	@Transactional
 	public void handleNpciWebhook(String neftImpsReference, boolean succeeded) {
-		WithdrawalEntity withdrawal = withdrawalRepository
+		com.deezywallet.payment.entity.WithdrawalRequest withdrawal = withdrawalRepository
 				.findByNeftImpsReference(neftImpsReference)
 				.orElseGet(() -> {
 					log.warn("NPCI webhook for unknown UTR={}", neftImpsReference);
