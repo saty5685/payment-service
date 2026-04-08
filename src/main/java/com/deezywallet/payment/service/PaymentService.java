@@ -1,5 +1,19 @@
 package com.deezywallet.payment.service;
 
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.deezywallet.payment.constants.PaymentConstants;
 import com.deezywallet.payment.constants.PaymentErrorCode;
 import com.deezywallet.payment.dto.request.TopUpRequest;
@@ -11,26 +25,18 @@ import com.deezywallet.payment.entity.PaymentMethod;
 import com.deezywallet.payment.enums.PaymentStatusEnum;
 import com.deezywallet.payment.enums.PaymentTypeEnum;
 import com.deezywallet.payment.event.PaymentEventPublisher;
-import com.deezywallet.payment.exception.*;
+import com.deezywallet.payment.exception.DuplicatePaymentException;
+import com.deezywallet.payment.exception.GatewayDeclinedException;
+import com.deezywallet.payment.exception.PaymentNotFoundException;
+import com.deezywallet.payment.exception.PaymentNotRefundableException;
+import com.deezywallet.payment.exception.PaymentValidationException;
 import com.deezywallet.payment.mapper.PaymentMapper;
 import com.deezywallet.payment.repository.PaymentMethodRepository;
 import com.deezywallet.payment.repository.PaymentRepository;
 import com.deezywallet.payment.security.UserPrincipal;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * PaymentService — top-up orchestration.
@@ -387,6 +393,15 @@ public class PaymentService {
 	public AdminPaymentResponse getPaymentAdmin(String paymentId) {
 		return paymentRepository.findById(paymentId)
 				.map(mapper::toAdminResponse)
+				.orElseThrow(() -> new PaymentNotFoundException(
+						"Payment not found: " + paymentId));
+	}
+
+
+	@Transactional(readOnly = true)
+	public PaymentResponse getPaymentInternal(String paymentId) {
+		return paymentRepository.findById(paymentId)
+				.map(mapper::toResponse)
 				.orElseThrow(() -> new PaymentNotFoundException(
 						"Payment not found: " + paymentId));
 	}
