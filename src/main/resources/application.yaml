@@ -96,7 +96,7 @@ management:
 
 # ── JWT (resource server — validates only) ────────────────────────────────────
 jwt:
-  issuer: deezy-wallet-platform
+  issuer: digital-wallet-platform
   # secret: SET PER PROFILE
 
 # ── Downstream service URLs ───────────────────────────────────────────────────
